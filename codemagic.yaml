@@ -1,0 +1,110 @@
+workflows:
+  ios-weather-app:
+    name: Weather App iOS Build
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    integrations:
+      app_store_connect: codemagic
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.weatherapp.WeatherApp
+      vars:
+        XCODE_WORKSPACE: "WeatherApp.xcodeproj"
+        XCODE_SCHEME: "WeatherApp"
+        APP_STORE_APPLE_ID: 1234567890 # Замените на ваш Apple ID
+      xcode: 15.0
+      cocoapods: default
+    scripts:
+      - name: Set up code signing settings on Xcode project
+        script: |
+          xcode-project use-profiles
+      - name: Get CocoaPods dependencies
+        script: |
+          # Если используете CocoaPods, раскомментируйте:
+          # cd WeatherApp
+          # pod install
+          echo "No CocoaPods dependencies"
+      - name: Increment build number
+        script: |
+          cd $CM_BUILD_DIR/WeatherApp
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-app-store-build-number "$APP_STORE_APPLE_ID")
+          agvtool new-version -all $(($LATEST_BUILD_NUMBER + 1))
+      - name: Build ipa for distribution
+        script: |
+          cd $CM_BUILD_DIR/WeatherApp
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com # Замените на ваш email
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        auth: integration
+        # Опционально: автоматическая публикация в TestFlight
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testers
+        # Опционально: публикация в App Store
+        # submit_to_app_store: false
+
+  # Workflow для Debug сборки (без подписи)
+  ios-debug-build:
+    name: Weather App iOS Debug Build
+    max_build_duration: 30
+    instance_type: mac_mini_m1
+    environment:
+      vars:
+        XCODE_WORKSPACE: "WeatherApp.xcodeproj"
+        XCODE_SCHEME: "WeatherApp"
+      xcode: 15.0
+      cocoapods: default
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'develop'
+          include: true
+          source: true
+    scripts:
+      - name: Install dependencies
+        script: |
+          # Если нужны зависимости
+          echo "Installing dependencies..."
+      - name: Build Debug version
+        script: |
+          cd $CM_BUILD_DIR/WeatherApp
+          xcodebuild -project "$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Run tests
+        script: |
+          cd $CM_BUILD_DIR/WeatherApp
+          xcodebuild test \
+            -project "$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.0'
+    artifacts:
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com
+        notify:
+          success: false
+          failure: true
