@@ -11,7 +11,7 @@ workflows:
       vars:
         XCODE_PROJECT: "WeatherApp/WeatherApp.xcodeproj"
         XCODE_SCHEME: "WeatherApp"
-      xcode: 15.0
+      xcode: 26.1
     triggering:
       events:
         - push
