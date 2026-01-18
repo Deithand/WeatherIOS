@@ -5,7 +5,7 @@ class WeatherService {
     static let shared = WeatherService()
 
     // ВАЖНО: Замените на ваш API ключ от OpenWeather
-    private let apiKey = "YOUR_API_KEY_HERE"
+    private let apiKey = "4e2a83f924a6e86ef8d2a89aa225fd5f"
     private let baseURL = "https://api.openweathermap.org/data/2.5"
 
     private init() {}
